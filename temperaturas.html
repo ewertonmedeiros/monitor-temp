@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor Temperaturas Systemp</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+
+    <style>
+        /* Paleta de Cores e Estilos Base */
+        :root {
+            --cor-primaria: #0A1C2C;
+            --cor-secundaria: #53A53B;
+            --cor-fundo: #F4F7F6;
+            --cor-texto: #333333;
+            --cor-branco: #FFFFFF;
+            
+            --cor-alerta-calor: #D32F2F;
+            --fundo-alerta-calor: #FFEBEE;
+            
+            --cor-alerta-frio: #0288D1;
+            --fundo-alerta-frio: #E1F5FE;
+
+            --cor-alerta-tempestade: #E65100;
+            --fundo-alerta-tempestade: #FFF3E0;
+            
+            --cor-slider: #cbd5e1;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body { background-color: var(--cor-fundo); color: var(--cor-texto); display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
+
+        #pdf-content { display: flex; flex-direction: column; flex: 1; background-color: var(--cor-fundo); width: 100%; transition: all 0.2s ease; }
+
+        /* Cabeçalho e Hambúrguer */
+        header { background-color: var(--cor-primaria); color: var(--cor-branco); padding: 1rem; border-bottom: 5px solid var(--cor-secundaria); position: relative; z-index: 1001; }
+        .header-content { display: flex; align-items: center; justify-content: center; max-width: 1200px; margin: 0 auto; text-align: left; }
+        .header-text h1 { font-size: 2rem; margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 1px; }
+        .header-text h2 { font-size: 1.1rem; font-weight: 300; color: var(--cor-secundaria); }
+        
+        .hamburger { display: none; flex-direction: column; justify-content: space-around; width: 30px; height: 24px; background: transparent; border: none; cursor: pointer; padding: 0; }
+        .hamburger span { width: 100%; height: 3px; background-color: var(--cor-branco); border-radius: 10px; transition: all 0.3s linear; }
+
+        /* Estrutura de Navegação Base (Desktop) */
+        .nav-wrapper { display: block; }
+        .mobile-menu-header, .menu-section-title { display: none; }
+        .menu-overlay { display: none; }
+
+        .tabs { display: flex; justify-content: center; flex-wrap: wrap; background-color: var(--cor-branco); box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 0.5rem; gap: 0.5rem; }
+        .tab-btn { background-color: transparent; border: 2px solid transparent; color: var(--cor-primaria); padding: 10px 20px; font-size: 1rem; font-weight: bold; cursor: pointer; border-radius: 5px; transition: all 0.3s; }
+        .tab-btn:hover { background-color: #E8F0EA; }
+        .tab-btn.active { background-color: var(--cor-secundaria); color: var(--cor-branco); border-color: var(--cor-secundaria); }
+
+        .day-tabs { display: flex; justify-content: center; flex-wrap: wrap; margin: 1.5rem auto 0; gap: 1rem; }
+        .day-btn { background-color: var(--cor-branco); border: 2px solid var(--cor-slider); color: var(--cor-texto); padding: 8px 24px; font-size: 0.95rem; font-weight: bold; cursor: pointer; border-radius: 20px; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .day-btn:hover { border-color: var(--cor-primaria); }
+        .day-btn.active { background-color: var(--cor-primaria); color: var(--cor-branco); border-color: var(--cor-primaria); }
+
+        /* Slider de Tempo */
+        .time-control-container { background-color: var(--cor-branco); margin: 1rem auto 0; max-width: 800px; padding: 1.5rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; width: 90%; position: relative; }
+        #slider-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--cor-primaria); border-radius: 10px; z-index: 10; font-size: 1.1rem; padding: 1rem; flex-direction: column; }
+        .time-display-wrapper { margin-bottom: 1rem; font-size: 1.2rem; color: var(--cor-primaria); font-weight: bold; }
+        #timeDisplay { background-color: var(--cor-primaria); color: var(--cor-secundaria); padding: 5px 15px; border-radius: 20px; font-size: 1.5rem; margin-left: 10px; }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; margin: 10px 0; }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 8px; cursor: pointer; background: var(--cor-slider); border-radius: 5px; }
+        input[type=range]::-webkit-slider-thumb { height: 24px; width: 24px; border-radius: 50%; background: var(--cor-secundaria); cursor: pointer; -webkit-appearance: none; margin-top: -8px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: transform 0.1s; }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        .slider-labels { display: flex; justify-content: space-between; margin-top: 5px; color: #64748b; font-size: 0.8rem; font-weight: bold; }
+
+        .btn-export { display: block; margin: 0 auto 1.5rem; background-color: var(--cor-secundaria); color: var(--cor-branco); border: none; padding: 12px 24px; font-size: 1.1rem; font-weight: bold; border-radius: 30px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.15); transition: all 0.3s ease; }
+        .btn-export:hover { background-color: #3d7d2a; transform: translateY(-2px); box-shadow: 0 6px 10px rgba(0,0,0,0.2); }
+
+        /* Grade Principal e Cards */
+        main { flex: 1; padding: 1rem 2rem; max-width: 1200px; margin: 0 auto; width: 100%; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
+
+        .card { 
+            background-color: var(--cor-branco); border-radius: 8px; padding: 1.5rem; text-align: center; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid var(--cor-primaria); 
+            transition: transform 0.2s ease, box-shadow 0.2s ease; display: flex; flex-direction: column; justify-content: space-between;
+            cursor: pointer; position: relative;
+        }
+        .card:hover { transform: translateY(-6px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .card::after {
+            content: "📈 Ver Gráfico"; position: absolute; top: 10px; right: 10px;
+            font-size: 0.75rem; color: #888; opacity: 0; transition: opacity 0.3s;
+        }
+        .card:hover::after { opacity: 1; }
+
+        .city-name { font-size: 1.1rem; font-weight: bold; color: var(--cor-primaria); margin-bottom: 0.2rem; display: flex; align-items: center; justify-content: center; }
+        .min-max { font-size: 0.85rem; font-weight: 600; color: #666; margin-bottom: 1rem; }
+        .temperature { font-size: 2.8rem; font-weight: bold; color: var(--cor-texto); transition: color 0.3s ease; margin-bottom: 0.5rem; }
+        .unit { font-size: 1.2rem; vertical-align: super; }
+        .badges-container { display: flex; flex-direction: column; gap: 8px; align-items: center; min-height: 28px; }
+        .alert-badge { font-size: 0.80rem; font-weight: bold; padding: 5px 10px; border-radius: 12px; width: 100%; text-align: center; }
+
+        /* Alertas e Animações */
+        .card.storm { border-top-color: var(--cor-alerta-tempestade); background-color: var(--fundo-alerta-tempestade); animation: pulse-storm 1.5s infinite; }
+        .card.storm .temperature, .card.storm .city-name { color: var(--cor-alerta-tempestade); }
+        .card.storm .min-max { color: #b24103; }
+        .alert-badge.storm { color: #FFF; background-color: var(--cor-alerta-tempestade); }
+        @keyframes pulse-storm { 0% { box-shadow: 0 0 0 0 rgba(230, 81, 0, 0.6); } 70% { box-shadow: 0 0 0 15px rgba(230, 81, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(230, 81, 0, 0); } }
+
+        .card.hot { border-top-color: var(--cor-alerta-calor); background-color: var(--fundo-alerta-calor); animation: pulse-hot 1.5s infinite; }
+        .card.hot .temperature, .card.hot .city-name { color: var(--cor-alerta-calor); }
+        .card.hot .min-max { color: #b71c1c; }
+        .alert-badge.hot { color: var(--cor-alerta-calor); background-color: #ffcdd2; }
+        @keyframes pulse-hot { 0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.6); } 70% { box-shadow: 0 0 0 15px rgba(211, 47, 47, 0); } 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); } }
+
+        .card.cold { border-top-color: var(--cor-alerta-frio); background-color: var(--fundo-alerta-frio); animation: pulse-cold 1.5s infinite; }
+        .card.cold .temperature, .card.cold .city-name { color: var(--cor-alerta-frio); }
+        .card.cold .min-max { color: #01579b; }
+        .alert-badge.cold { color: #01579B; background-color: #B3E5FC; }
+        @keyframes pulse-cold { 0% { box-shadow: 0 0 0 0 rgba(2, 136, 209, 0.6); } 70% { box-shadow: 0 0 0 15px rgba(2, 136, 209, 0); } 100% { box-shadow: 0 0 0 0 rgba(2, 136, 209, 0); } }
+
+        /* Modal / Popup do Gráfico */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7); display: none; 
+            justify-content: center; align-items: center; z-index: 9999;
+            backdrop-filter: blur(3px);
+        }
+        .modal-content {
+            background: var(--cor-branco); border-radius: 12px;
+            width: 90%; max-width: 900px; padding: 2rem;
+            position: relative; box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+            border-top: 6px solid var(--cor-primaria);
+            animation: modalFadeIn 0.3s ease;
+        }
+        @keyframes modalFadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .modal-close {
+            position: absolute; top: 15px; right: 20px; font-size: 2rem; color: #999; 
+            cursor: pointer; line-height: 1; border: none; background: none; transition: color 0.2s;
+        }
+        .modal-close:hover { color: var(--cor-alerta-calor); }
+        .modal-title { font-size: 1.4rem; color: var(--cor-primaria); margin-bottom: 1.5rem; text-align: center; }
+        .chart-container { position: relative; height: 400px; width: 100%; }
+
+        .data-source { text-align: center; padding: 1rem; font-size: 0.85rem; color: #666; background-color: var(--cor-fundo); margin-top: auto; }
+        .data-source a { color: var(--cor-secundaria); text-decoration: none; font-weight: bold; }
+
+        footer { background-color: var(--cor-primaria); color: var(--cor-branco); text-align: center; padding: 1rem; font-size: 0.9rem; }
+        footer span { color: var(--cor-secundaria); font-weight: bold; }
+
+        /* ==========================================================
+           RESPONSIVIDADE E MENU HAMBÚRGUER (MOBILE)
+           ========================================================== */
+        @media (max-width: 768px) {
+            .header-content { justify-content: space-between; text-align: left; }
+            .header-text h1 { font-size: 1.3rem; }
+            .header-text h2 { font-size: 0.9rem; }
+            
+            /* Mostra o ícone Hambúrguer */
+            .hamburger { display: flex; }
+            
+            /* Overlay escuro ao abrir o menu */
+            .menu-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; }
+            .menu-overlay.open { display: block; }
+            
+            /* Sidebar Navigation (gaveta lateral) */
+            .nav-wrapper {
+                position: fixed; top: 0; left: -280px; width: 280px; height: 100vh;
+                background: var(--cor-fundo); z-index: 1001;
+                transition: left 0.3s ease-in-out; box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+                display: flex; flex-direction: column; overflow-y: auto;
+            }
+            .nav-wrapper.open { left: 0; }
+            
+            .mobile-menu-header { display: flex; justify-content: space-between; align-items: center; background: var(--cor-primaria); color: var(--cor-branco); padding: 20px; }
+            .mobile-menu-header h3 { font-size: 1.2rem; }
+            .close-menu { background: transparent; border: none; color: var(--cor-branco); font-size: 2rem; cursor: pointer; line-height: 1; }
+            
+            .menu-section-title { display: block; padding: 20px 20px 5px; color: var(--cor-secundaria); font-size: 1rem; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #ddd; margin: 0 10px; }
+            
+            /* Estilo das abas dentro do menu lateral */
+            .tabs { flex-direction: column; box-shadow: none; background: transparent; padding: 10px 15px; }
+            .day-tabs { flex-direction: column; margin: 0; padding: 10px 15px 20px; }
+            .tab-btn, .day-btn { width: 100%; margin-bottom: 8px; text-align: left; padding: 12px 15px; background: var(--cor-branco); border: 1px solid #eee; border-left: 4px solid transparent; }
+            .tab-btn.active, .day-btn.active { background-color: #E8F0EA; border-color: #E8F0EA; border-left: 4px solid var(--cor-secundaria); color: var(--cor-primaria); }
+
+            main { padding: 1rem; }
+            .slider-labels span:nth-child(even) { display: none; }
+            .modal-content { padding: 1.5rem 1rem; } .chart-container { height: 300px; }
+        }
+
+        /* Classe de compactação para o PDF (Garante que a Gaveta não estrague a foto) */
+        .pdf-compact .btn-export, .pdf-compact .modal-overlay, .pdf-compact .hamburger, .pdf-compact .menu-overlay { display: none !important; }
+        .pdf-compact header { padding: 10px !important; }
+        .pdf-compact header h1 { font-size: 1.6rem !important; margin:0;}
+        .pdf-compact header h2 { font-size: 1rem !important; margin:0;}
+        
+        .pdf-compact .nav-wrapper { position: static !important; width: 100% !important; height: auto !important; display: block !important; box-shadow: none !important; background: transparent !important; }
+        .pdf-compact .mobile-menu-header, .pdf-compact .menu-section-title { display: none !important; }
+        .pdf-compact .tabs, .pdf-compact .day-tabs { flex-direction: row !important; padding: 2px !important; margin-top: 5px !important; }
+        .pdf-compact .tab-btn, .pdf-compact .day-btn { width: auto !important; margin-bottom: 0 !important; padding: 8px 15px !important; border: none !important; }
+        
+        .pdf-compact input[type=range], .pdf-compact .slider-labels { display: none !important; }
+        .pdf-compact .time-control-container { padding: 8px !important; margin-top: 10px !important; box-shadow: none !important; border: 1px solid #ddd; }
+        .pdf-compact .time-display-wrapper { margin-bottom: 0 !important; font-size: 1rem !important;}
+        
+        .pdf-compact main { padding: 10px 15px !important; }
+        .pdf-compact .cards-grid { grid-template-columns: repeat(5, 1fr) !important; gap: 8px !important; }
+        .pdf-compact .card { padding: 8px !important; box-shadow: none !important; border: 1px solid #ccc !important; border-top: 4px solid var(--cor-primaria) !important; animation: none !important; }
+        .pdf-compact .card::after { display: none !important; } 
+        .pdf-compact .temperature { font-size: 1.8rem !important; margin-bottom: 2px !important; }
+        .pdf-compact .city-name { font-size: 0.9rem !important; }
+        .pdf-compact .min-max { font-size: 0.7rem !important; margin-bottom: 5px !important; }
+        .pdf-compact .alert-badge { font-size: 0.65rem !important; padding: 2px !important; }
+        .pdf-compact .data-source { padding: 2px !important; font-size: 0.65rem !important; margin-top: auto !important; }
+        .pdf-compact footer { padding: 5px !important; font-size: 0.7rem !important; }
+
+    </style>
+</head>
+<body>
+
+    <div class="menu-overlay" id="menu-overlay"></div>
+
+    <div id="pdf-content">
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>Monitor Temperaturas Systemp</h1>
+                    <h2>CCO | Malha Sul</h2>
+                </div>
+                <button class="hamburger" id="hamburger-btn" aria-label="Menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+        </header>
+
+        <div class="nav-wrapper" id="nav-wrapper">
+            <div class="mobile-menu-header">
+                <h3>Navegação</h3>
+                <button class="close-menu" id="close-menu-btn" aria-label="Fechar Menu">&times;</button>
+            </div>
+            
+            <h4 class="menu-section-title">Selecione a Malha</h4>
+            <nav class="tabs" id="tab-container"></nav>
+            
+            <h4 class="menu-section-title">Selecione o Dia</h4>
+            <nav class="day-tabs" id="day-container">
+                <button class="day-btn active" onclick="setDay(0)">HOJE</button>
+                <button class="day-btn" onclick="setDay(1)">D+1</button>
+                <button class="day-btn" onclick="setDay(2)">D+2</button>
+            </nav>
+        </div>
+
+        <div class="time-control-container">
+            <div id="slider-overlay">
+                <span>Baixando matriz de dados meteorológicos (72h)...</span>
+                <span id="loading-error" style="color: red; display: none; margin-top: 10px; font-size: 0.9rem;"></span>
+            </div>
+            <div class="time-display-wrapper">
+                Previsão para: <span id="timeDisplay">12:00</span>
+            </div>
+            <input type="range" id="timeSlider" min="0" max="22" step="2" value="12" disabled>
+            <div class="slider-labels">
+                <span>00h</span><span>02h</span><span>04h</span><span>06h</span><span>08h</span>
+                <span>10h</span><span>12h</span><span>14h</span><span>16h</span><span>18h</span>
+                <span>20h</span><span>22h</span>
+            </div>
+        </div>
+
+        <main>
+            <div class="cards-grid" id="cards-container"></div>
+        </main>
+
+        <button class="btn-export" onclick="exportToPDF()">📥 Exportar Relatório (PDF)</button>
+
+        <div class="data-source">
+            Fonte das informações meteorológicas: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">API Open-Meteo</a> (Modelos Globais Oficiais)
+        </div>
+
+        <footer>
+            Desenvolvido por <span>Ewerton Siqueira Medeiros</span> &copy; 2026.
+        </footer>
+    </div>
+
+    <div id="chartModal" class="modal-overlay" onclick="fecharModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="fecharModal(event)">&times;</button>
+            <h3 class="modal-title" id="chartModalTitle">Evolução da Temperatura</h3>
+            <div class="chart-container">
+                <canvas id="cityChartCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const malhasData = {
+            "Rio Grande": [
+                { name: "Cruz Alta", lat: -28.63, lon: -53.60, hourlyData: [], weatherCode: [] },
+                { name: "Tupaciretã", lat: -29.08, lon: -53.83, hourlyData: [], weatherCode: [] },
+                { name: "Santa Maria", lat: -29.68, lon: -53.80, hourlyData: [], weatherCode: [] },
+                { name: "Dilermando", lat: -29.51, lon: -54.21, hourlyData: [], weatherCode: [] },
+                { name: "Cacequi", lat: -29.88, lon: -54.82, hourlyData: [], weatherCode: [] },
+                { name: "São Gabriel", lat: -30.33, lon: -54.32, hourlyData: [], weatherCode: [] },
+                { name: "Bagé", lat: -31.33, lon: -54.10, hourlyData: [], weatherCode: [] },
+                { name: "Pedro Osório", lat: -31.86, lon: -52.82, hourlyData: [], weatherCode: [] },
+                { name: "Pelotas", lat: -31.77, lon: -52.33, hourlyData: [], weatherCode: [] },
+                { name: "Rio Grande", lat: -32.03, lon: -52.09, hourlyData: [], weatherCode: [] }
+            ],
+            "São Francisco": [
+                { name: "Rio Negro", lat: -26.10, lon: -49.79, hourlyData: [], weatherCode: [] },
+                { name: "Corupá", lat: -26.42, lon: -49.24, hourlyData: [], weatherCode: [] },
+                { name: "Joinville", lat: -26.30, lon: -48.84, hourlyData: [], weatherCode: [] },
+                { name: "S. Francisco", lat: -26.24, lon: -48.63, hourlyData: [], weatherCode: [] }
+            ],
+            "Oeste PR": [
+                { name: "Ponta Grossa", lat: -25.09, lon: -50.16, hourlyData: [], weatherCode: [] },
+                { name: "Irati", lat: -25.46, lon: -50.64, hourlyData: [], weatherCode: [] },
+                { name: "Inácio Martins", lat: -25.57, lon: -51.07, hourlyData: [], weatherCode: [] },
+                { name: "Guarapuava", lat: -25.39, lon: -51.46, hourlyData: [], weatherCode: [] },
+                { name: "Laranjeiras", lat: -25.40, lon: -52.41, hourlyData: [], weatherCode: [] },
+                { name: "Cascavel", lat: -24.95, lon: -53.45, hourlyData: [], weatherCode: [] }
+            ],
+            "Central": [
+                { name: "Ponta Grossa", lat: -25.09, lon: -50.16, hourlyData: [], weatherCode: [] },
+                { name: "Ipiranga", lat: -25.01, lon: -50.58, hourlyData: [], weatherCode: [] },
+                { name: "Reserva", lat: -24.65, lon: -50.85, hourlyData: [], weatherCode: [] },
+                { name: "Mauá do Sul", lat: -23.90, lon: -51.22, hourlyData: [], weatherCode: [] },
+                { name: "Apucarana", lat: -23.55, lon: -51.45, hourlyData: [], weatherCode: [] },
+                { name: "Maringá", lat: -23.42, lon: -51.93, hourlyData: [], weatherCode: [] },
+                { name: "Londrina", lat: -23.31, lon: -51.16, hourlyData: [], weatherCode: [] }
+            ],
+            "CTC": [
+                { name: "Paranaguá", lat: -25.52, lon: -48.50, hourlyData: [], weatherCode: [] },
+                { name: "Morretes", lat: -25.47, lon: -48.83, hourlyData: [], weatherCode: [] },
+                { name: "Piraquara", lat: -25.44, lon: -49.06, hourlyData: [], weatherCode: [] },
+                { name: "Curitiba", lat: -25.42, lon: -49.27, hourlyData: [], weatherCode: [] },
+                { name: "Balsa Nova", lat: -25.58, lon: -49.63, hourlyData: [], weatherCode: [] },
+                { name: "Ponta Grossa", lat: -25.09, lon: -50.16, hourlyData: [], weatherCode: [] }
+            ]
+        };
+
+        let currentTab = "Rio Grande";
+        let currentDayOffset = 0; 
+        let graficoCidade = null; 
+
+        function getInitialHour() {
+            let hour = new Date().getHours();
+            return (hour % 2 === 0) ? hour : hour - 1;
+        }
+        
+        let currentHour = getInitialHour();
+
+        const tabContainer = document.getElementById('tab-container');
+        const cardsContainer = document.getElementById('cards-container');
+        const timeSlider = document.getElementById('timeSlider');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const sliderOverlay = document.getElementById('slider-overlay');
+        const loadingError = document.getElementById('loading-error');
+        
+        // Elementos do Menu Mobile
+        const navWrapper = document.getElementById('nav-wrapper');
+        const menuOverlay = document.getElementById('menu-overlay');
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const closeMenuBtn = document.getElementById('close-menu-btn');
+
+        // Função para Abrir/Fechar Menu Mobile
+        function toggleMenu() {
+            navWrapper.classList.toggle('open');
+            menuOverlay.classList.toggle('open');
+        }
+
+        // Função para fechar automaticamente ao selecionar (apenas no mobile)
+        function autoCloseMenu() {
+            if (window.innerWidth <= 768 && navWrapper.classList.contains('open')) {
+                toggleMenu();
+            }
+        }
+
+        hamburgerBtn.addEventListener('click', toggleMenu);
+        closeMenuBtn.addEventListener('click', toggleMenu);
+        menuOverlay.addEventListener('click', toggleMenu);
+
+        function setDay(offset) {
+            currentDayOffset = offset;
+            const buttons = document.querySelectorAll('.day-btn');
+            buttons.forEach((btn, index) => {
+                btn.classList.toggle('active', index === offset);
+            });
+            renderCards();
+            autoCloseMenu();
+        }
+
+        async function fetchRealWeather(isSilentRefresh = false) {
+            if (!isSilentRefresh) {
+                sliderOverlay.style.display = 'flex';
+                loadingError.style.display = 'none';
+            }
+            
+            try {
+                const fetchPromises = Object.entries(malhasData).map(async ([region, cities]) => {
+                    const lats = cities.map(c => c.lat).join(',');
+                    const lons = cities.map(c => c.lon).join(',');
+                    
+                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=temperature_2m,weathercode&timezone=America/Sao_Paulo&forecast_days=3`;
+                    
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`Falha HTTP: ${response.status}`);
+                    
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.reason || "Erro da API.");
+
+                    const isArray = Array.isArray(data);
+
+                    cities.forEach((city, index) => {
+                        const targetData = isArray ? data[index] : data;
+                        city.hourlyData = targetData.hourly.temperature_2m;
+                        city.weatherCode = targetData.hourly.weathercode;
+                    });
+                });
+
+                await Promise.all(fetchPromises);
+                
+                sliderOverlay.style.display = 'none';
+                timeSlider.disabled = false;
+                renderCards();
+
+            } catch (error) {
+                console.error("Erro ao buscar dados meteorológicos:", error);
+                if (!isSilentRefresh) {
+                    loadingError.style.display = 'block';
+                    loadingError.innerHTML = `⚠️ Falha ao atualizar dados. O sistema tentará novamente.<br>Motivo: ${error.message}`;
+                    timeSlider.disabled = false; 
+                    setTimeout(() => { sliderOverlay.style.display = 'none'; }, 3000);
+                }
+            }
+        }
+
+        function initApp() {
+            timeSlider.value = currentHour;
+            timeDisplay.textContent = currentHour.toString().padStart(2, '0') + ':00';
+
+            Object.keys(malhasData).forEach((region, index) => {
+                const btn = document.createElement('button');
+                btn.className = `tab-btn ${index === 0 ? 'active' : ''}`;
+                btn.textContent = region;
+                btn.onclick = () => {
+                    currentTab = region;
+                    updateTabs();
+                    renderCards();
+                    autoCloseMenu();
+                };
+                tabContainer.appendChild(btn);
+            });
+
+            timeSlider.addEventListener('input', (e) => {
+                currentHour = parseInt(e.target.value);
+                timeDisplay.textContent = currentHour.toString().padStart(2, '0') + ':00';
+                renderCards();
+            });
+
+            fetchRealWeather();
+            setInterval(() => { fetchRealWeather(true); }, 1800000);
+        }
+
+        function updateTabs() {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent === currentTab);
+            });
+        }
+
+        function renderCards() {
+            cardsContainer.innerHTML = '';
+            const cities = malhasData[currentTab];
+            const startOfDayIndex = currentDayOffset * 24;
+            const dataIndex = startOfDayIndex + currentHour;
+
+            cities.forEach(city => {
+                let temp = 0;
+                let wCode = 0;
+                let dailyMin = 0;
+                let dailyMax = 0;
+                
+                if(city.hourlyData && city.hourlyData.length > 0) {
+                    temp = Math.round(city.hourlyData[dataIndex]);
+                    wCode = city.weatherCode[dataIndex];
+                    
+                    const dailyData = city.hourlyData.slice(startOfDayIndex, startOfDayIndex + 24);
+                    dailyMin = Math.round(Math.min(...dailyData));
+                    dailyMax = Math.round(Math.max(...dailyData));
+                } else {
+                    return; 
+                }
+                
+                const isStorm = [65, 82, 95, 96, 99].includes(wCode);
+                const isHot = temp > 29;
+                const isCold = temp < 5;
+
+                let cardClass = 'card';
+                let badgesHTML = '';
+
+                if (isStorm) badgesHTML += `<div class="alert-badge storm">🌩️ Alerta: Chuva Severa / Tempestade</div>`;
+                if (isHot) badgesHTML += `<div class="alert-badge hot">⚠️ Alerta: Risco de Interdição</div>`;
+                else if (isCold) badgesHTML += `<div class="alert-badge cold">❄️ Alerta: Frio Extremo / Geada</div>`;
+
+                if (isStorm) cardClass += ' storm';
+                else if (isHot) cardClass += ' hot';
+                else if (isCold) cardClass += ' cold';
+
+                const card = document.createElement('div');
+                card.className = cardClass;
+                card.onclick = () => abrirGrafico(city);
+                
+                card.innerHTML = `
+                    <div class="city-name">${city.name}</div>
+                    <div class="min-max">Mín: ${dailyMin}ºC &nbsp;|&nbsp; Máx: ${dailyMax}ºC</div>
+                    <div class="temperature">
+                        ${temp}<span class="unit">ºC</span>
+                    </div>
+                    <div class="badges-container">
+                        ${badgesHTML}
+                    </div>
+                `;
+                
+                cardsContainer.appendChild(card);
+            });
+        }
+
+        /* ==========================================
+           LÓGICA DO GRÁFICO DINÂMICO (ZONAS E FAIXAS)
+           ========================================== */
+           
+        function abrirGrafico(city) {
+            const modal = document.getElementById('chartModal');
+            const tituloModal = document.getElementById('chartModalTitle');
+            const ctx = document.getElementById('cityChartCanvas').getContext('2d');
+            
+            const startOfDayIndex = currentDayOffset * 24;
+            
+            const dailyData = city.hourlyData.slice(startOfDayIndex, startOfDayIndex + 24);
+            const dailyWeather = city.weatherCode.slice(startOfDayIndex, startOfDayIndex + 24);
+            const horas = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+            
+            const labelsDias = ["Hoje", "Amanhã (D+1)", "Depois de Amanhã (D+2)"];
+            tituloModal.textContent = `Evolução Térmica: ${city.name} - ${labelsDias[currentDayOffset]}`;
+            
+            modal.style.display = 'flex';
+
+            if (graficoCidade) {
+                graficoCidade.destroy();
+            }
+
+            const maxTempOriginal = Math.max(...dailyData);
+            const minTempOriginal = Math.min(...dailyData);
+            const chartMax = Math.max(maxTempOriginal + 2, 31); 
+            const chartMin = Math.min(minTempOriginal - 2, 3);  
+
+            const annotationsObjects = {
+                faixaCalor: {
+                    type: 'box', yMin: 29, yMax: 100, backgroundColor: 'rgba(211, 47, 47, 0.12)', borderWidth: 0,
+                    label: { display: true, content: '⚠️ Calor (Risco de Dilatação)', position: 'start', color: 'rgba(211, 47, 47, 0.7)', font: { size: 11, weight: 'bold' } }
+                },
+                faixaFrio: {
+                    type: 'box', yMin: -50, yMax: 5, backgroundColor: 'rgba(2, 136, 209, 0.12)', borderWidth: 0,
+                    label: { display: true, content: '❄️ Frio Extremo / Geada', position: 'start', yAdjust: -15, color: 'rgba(2, 136, 209, 0.7)', font: { size: 11, weight: 'bold' } }
+                }
+            };
+
+            let rainStart = -1;
+            for(let i = 0; i <= 24; i++) {
+                let isRain = i < 24 && (dailyWeather[i] >= 51 && dailyWeather[i] <= 99);
+                
+                if(isRain && rainStart === -1) {
+                    rainStart = i; 
+                } else if (!isRain && rainStart !== -1) {
+                    annotationsObjects['chuva_' + rainStart] = {
+                        type: 'box', xMin: rainStart - 0.5, xMax: (i - 1) + 0.5, backgroundColor: 'rgba(112, 128, 144, 0.15)', borderWidth: 0,
+                        label: { display: true, content: '🌧️ Chuva', position: 'start', yAdjust: 25, color: 'rgba(60, 80, 100, 0.8)', font: { size: 10, weight: 'bold' } }
+                    };
+                    rainStart = -1; 
+                }
+            }
+
+            graficoCidade = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: horas,
+                    datasets: [{
+                        label: 'Temperatura (ºC)', data: dailyData,
+                        borderColor: '#0A1C2C', backgroundColor: 'rgba(10, 28, 44, 0.1)',
+                        borderWidth: 3, pointBackgroundColor: '#53A53B', pointBorderColor: '#FFF',
+                        pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 8,
+                        fill: true, tension: 0.4 
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        annotation: { drawTime: 'beforeDatasetsDraw', annotations: annotationsObjects },
+                        tooltip: {
+                            backgroundColor: '#0A1C2C', titleFont: { size: 14 }, bodyFont: { size: 16, weight: 'bold' },
+                            padding: 12, displayColors: false, callbacks: { label: function(context) { return context.parsed.y + ' ºC'; } }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { min: chartMin, max: chartMax, ticks: { callback: function(value) { return value + 'º'; } } }
+                    }
+                }
+            });
+        }
+
+        function fecharModal(event) {
+            if(event) event.preventDefault();
+            document.getElementById('chartModal').style.display = 'none';
+        }
+
+        function exportToPDF() {
+            const element = document.getElementById('pdf-content');
+            element.classList.add('pdf-compact');
+            
+            const diaVisualizado = ["Hoje", "D+1", "D+2"][currentDayOffset];
+            const horaVisualizada = document.getElementById('timeDisplay').innerText;
+            const nomeArquivo = `Relatorio_Systemp_${currentTab.replace(' ', '_')}_${diaVisualizado}_${horaVisualizada.replace(':', 'h')}.pdf`;
+
+            const opt = {
+                margin:       10,
+                filename:     nomeArquivo,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true }, 
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.classList.remove('pdf-compact');
+            });
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
