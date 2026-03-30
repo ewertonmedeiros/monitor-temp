@@ -12,17 +12,18 @@ Consome dados meteorológicos reais utilizando a API Open-Meteo. Traz a previsã
 Uma versão offline que possui um motor interno (mock) gerador de dados térmicos. Ele simula cenários específicos de inverno (frio extremo, geadas e variações de temperatura) para testes de interface e demonstração de alertas.
 
 <h3>✨ Funcionalidades Principais</h3>
+
 * Navegação por Malhas: Separação das estações por regiões (Rio Grande, São Francisco, Oeste PR, Central e CTC).
 
 * Previsão de 72 Horas: Controle de visualização por dias (Hoje, D+1, D+2) e um slider intuitivo de horário (intervalos de 2 horas).
 
 * Sistema de Alertas Dinâmicos: Cards que mudam de cor e emitem alertas baseados nas condições climáticas:
 
-❄️ Frio Extremo / Geada: Temperaturas abaixo de 5ºC.
+    - ❄️ Frio Extremo / Geada: Temperaturas abaixo de 5ºC.
 
-⚠️ Calor (Risco de Interdição): Temperaturas acima de 29ºC.
+    - ⚠️ Calor (Risco de Interdição): Temperaturas acima de 29ºC.
 
-🌩️ Tempestade: Detecção de chuva severa.
+    - 🌩️ Tempestade: Detecção de chuva severa.
 
 * Gráficos Evolutivos: Ao clicar em um card, um modal exibe um gráfico de linha detalhado com a curva térmica de 24 horas, destacando as faixas de risco (calor/frio) e períodos de chuva.
 
@@ -31,6 +32,7 @@ Uma versão offline que possui um motor interno (mock) gerador de dados térmico
 * Design Responsivo: Interface limpa, moderna e adaptada para dispositivos móveis, incluindo um menu lateral (hambúrguer) para telas menores.
 
 <h3>🛠️ Tecnologias Utilizadas</h3>
+
 - HTML5, CSS3 e JavaScript (Vanilla): Estrutura, estilo e lógica de interface.
 
 - Chart.js: Renderização dos gráficos dinâmicos de temperatura.
